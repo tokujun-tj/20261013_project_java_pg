@@ -4,6 +4,7 @@ public class App { // Appという名前のプログラムを定義します
     public static void main(String[] args) throws Exception { // プログラムの実行開始地点です
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0); // 8080番ポートでサーバーを用意します
         server.createContext("/", exchange -> { // "/"へのアクセスを受け取る処理を登録します
+            System.out.println("ハンドラが動いた");
             String message = "こんにちは, 徳永です!"; // ブラウザに返す文字を用意します
             exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8"); // UTF-8の文字として返すことを伝えます
             byte[] body = message.getBytes("UTF-8"); // 返す文字をUTF-8のデータに変換します
@@ -11,7 +12,7 @@ public class App { // Appという名前のプログラムを定義します
             exchange.getResponseBody().write(body); // 変換したデータをブラウザに送ります
             exchange.getResponseBody().close(); // 送信を終えて応答を閉じます
         }); // "/"への処理の登録はここまでです
-        server.start(); // サーバーの待ち受けを開始します
+            server.start(); // サーバーの待ち受けを開始します
         System.out.println("サーバー起動: http://localhost:8080 （止めるときは Ctrl+C）"); // 起動したことをターミナルに表示します
     } // mainメソッドはここまでです
 } // Appクラスはここまでです
