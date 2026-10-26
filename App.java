@@ -64,17 +64,20 @@ public class App { // Appという名前のプログラムを定義します
                 exchange.close(); // ★追加 応答を閉じます
                 return; // ★追加 この分岐の処理を終えます
             } else if (path.equals("/")) { // トップページにフォームとTodo一覧を表示します
-                String html = "<form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // Todo追加フォームと一覧を始めます
+                String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>わたしのTodo</title><style>body { max-width: 640px; margin: 24px auto; padding: 0 16px; font-size: 16px; } h1 { font-size: 24px; } input, button { font-size: 16px; }</style></head><body><h1>わたしのTodo</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // Todo追加フォームと一覧を始めます
                 for (Todo todo : todos) { // ★変更 リストのTodoを1件ずつ取り出します
                     String mark = ""; // ★変更 完了印を空にしておきます
                     if (todo.isDone()) { // ★変更 完了したTodoか確認します
-                        mark = " [済]"; // ★変更 完了印を付けます
+                        mark = "✓"; // ★変更 完了印を付けます
                     } // ★変更 完了印の処理はここまでです
                     html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
                             + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
                                                                                                 // Todoのタイトルと完了・削除リンクをHTMLに追加します
                 } // Todoをすべて追加し終えます
-                html += "</ul>"; // HTMLのリストを閉じます
+                if (todos.isEmpty()) {
+                    html += "<p>やることは、いまゼロです</p>";
+                }
+                html += "</ul></body></html>"; // HTMLのリストを閉じます
                 message = html; // 組み立てたHTMLを応答にします
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8"); // トップページをHTMLとして返します
             } else {
