@@ -1,122 +1,230 @@
-import com.sun.net.httpserver.HttpServer; // Java標準の小さなWebサーバーを使います
-import java.net.InetSocketAddress; // 待ち受ける住所とポート番号を指定します
-import java.net.URLDecoder; // フォームで送られた日本語を元に戻します
-import java.nio.charset.StandardCharsets; // 文字コードを指定します
-import java.util.ArrayList; // Todoを入れるリストを用意します
-import java.util.List; // 文字列のリストを使います
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection; // ★ SQLite保存版
+import java.sql.DriverManager; // ★ SQLite保存版
+import java.sql.PreparedStatement; // ★ SQLite保存版
+import java.sql.ResultSet; // ★ SQLite保存版
+import java.sql.SQLException; // ★ SQLite保存版
+import java.util.ArrayList; // ★ SQLite保存版
+import java.util.List; // ★ SQLite保存版
 
-public class App { // Appという名前のプログラムを定義します
-    static List<Todo> todos = new ArrayList<>(); // ★変更 Todoを保存するリストです
-    static int nextId = 1; // ★変更 次に使うTodoの番号です
+public class App {
+    private static final String DB_URL = "jdbc:sqlite:todos.db"; // ★ CSV保存版から変更
 
-    public static void main(String[] args) throws Exception { // プログラムの実行開始地点です
-        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0); // 8080番ポートでサーバーを用意します
-        todos.add(new Todo(nextId++, "牛乳を買う")); // ★変更 起動時のサンプルTodoを追加します
-        Todo egg = new Todo(nextId++, "卵を買う"); // ★変更 起動時のサンプルTodoを作ります
-        egg.setDone(true); // ★変更 卵を買うを完了にします
-        todos.add(egg); // ★変更 サンプルTodoを追加します
-        server.createContext("/", exchange -> { // "/"へのアクセスを受け取る処理を登録します
-            String path = exchange.getRequestURI().getPath(); // アクセスされたパスを取り出します
-            String method = exchange.getRequestMethod(); // GETやPOSTなどの方法を取り出します
-            String message;
-            exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8"); // 通常の応答はUTF-8のテキストとして返します
-            if (path.equals("/add") && method.equals("POST")) { // フォームから送られたTodoを追加します
-                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8); // 送信された内容をUTF-8で読み取ります
-                String value = body.substring(5); // todo=の後ろを取り出します
-                String title = URLDecoder.decode(value, StandardCharsets.UTF_8); // ★変更 日本語を元の文字に戻してtitleに入れます
-                if (!title.isEmpty()) { // ★変更 空の入力でなければリストに追加します
-                    todos.add(new Todo(nextId, title)); // ★変更 Todoを作ってリストに追加します
-                    nextId++; // ★変更 次の番号に進めます
-                } // 空の入力を追加しない処理はここまでです
-                exchange.getResponseHeaders().set("Location", "/"); // 戻り先をトップページにします
-                exchange.sendResponseHeaders(303, -1); // トップページへ移動する応答を返します
-                exchange.close(); // 応答を閉じます
-                return; // この分岐の処理を終えます
-            } else if (path.equals("/done") && method.equals("GET")) { // ★追加 完了リンクの処理です
-                String query = exchange.getRequestURI().getQuery(); // ★追加 URLのidを受け取ります
-                if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加 idがあるか確認します
-                    try { // ★追加 idを数字に変える処理です
-                        int id = Integer.parseInt(query.substring(3)); // ★追加 idを数に変えます
-                        for (Todo todo : todos) { // ★追加 Todoを1件ずつ確認します
-                            if (todo.getId() == id) { // ★追加 idが一致するか確認します
-                                todo.setDone(true); // ★追加 Todoを完了にします
-                                break; // ★追加 一致したTodoの確認を終えます
-                            } // ★追加 idが一致した場合の処理はここまでです
-                        } // ★追加 Todoの確認はここまでです
-                    } catch (NumberFormatException e) { // ★追加 数字でないidは何もしません
-                    } // ★追加 idを数字に変える処理はここまでです
-                } // ★追加 idの確認と完了処理はここまでです
-                exchange.getResponseHeaders().set("Location", "/"); // ★追加 一覧に戻ります
-                exchange.sendResponseHeaders(303, -1); // ★追加 一覧へ移動する応答を返します
-                exchange.close(); // ★追加 応答を閉じます
-                return; // ★追加 この分岐の処理を終えます
-            } else if (path.equals("/delete") && method.equals("GET")) { // ★追加 削除リンクの処理です
-                String query = exchange.getRequestURI().getQuery(); // ★追加 URLのidを受け取ります
-                if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加 idがあるか確認します
-                    try { // ★追加 idを数字に変える処理です
-                        int id = Integer.parseInt(query.substring(3)); // ★追加 idを数に変えます
-                        todos.remove(0); // ★追加 idが一致するTodoを削除します
-                    } catch (NumberFormatException e) { // ★追加 数字でないidは何もしません
-                    } // ★追加 idを数字に変える処理はここまでです
-                } // ★追加 idの確認と削除処理はここまでです
-                exchange.getResponseHeaders().set("Location", "/"); // ★追加 一覧に戻ります
-                exchange.sendResponseHeaders(303, -1); // ★追加 一覧へ移動する応答を返します
-                exchange.close(); // ★追加 応答を閉じます
-                return; // ★追加 この分岐の処理を終えます
-            } else if (path.equals("/")) { // トップページにフォームとTodo一覧を表示します
-                String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>わたしのTodo</title><style>body { max-width: 640px; margin: 24px auto; padding: 0 16px; font-size: 16px; } h1 { font-size: 24px; } input, button { font-size: 16px; }</style></head><body><h1>わたしのTodo</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // Todo追加フォームと一覧を始めます
-                for (Todo todo : todos) { // ★変更 リストのTodoを1件ずつ取り出します
-                    String mark = ""; // ★変更 完了印を空にしておきます
-                    if (todo.isDone()) { // ★変更 完了したTodoか確認します
-                        mark = "✓"; // ★変更 完了印を付けます
-                    } // ★変更 完了印の処理はここまでです
-                    html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
-                            + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
-                                                                                                // Todoのタイトルと完了・削除リンクをHTMLに追加します
-                } // Todoをすべて追加し終えます
-                if (todos.isEmpty()) {
-                    html += "<p>やることは、いまゼロです</p>";
-                }
-                html += "</ul></body></html>"; // HTMLのリストを閉じます
-                message = html; // 組み立てたHTMLを応答にします
-                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8"); // トップページをHTMLとして返します
-            } else {
-                message = "ページが見つかりません"; // ★変更 どのページでもない場合の応答です
+    private static Connection connect() throws SQLException { // ★ CSV保存版から変更
+        try { // ★ CSV保存版から変更: SQLite JDBCドライバを明示的に読み込む
+            Class.forName("org.sqlite.JDBC"); // ★ CSV保存版から変更: JDBCドライバを登録
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("sqlite-jdbc JARがクラスパスにありません", e); // ★ CSV保存版から変更
+        }
+        return DriverManager.getConnection(DB_URL); // ★ CSV保存版から変更
+    }
+
+    private static void initializeDatabase() throws SQLException { // ★ CSV保存版から変更
+        String sql = "CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, title TEXT, done INTEGER)"; // ★ CSV保存版から変更
+        try (Connection c = connect(); PreparedStatement s = c.prepareStatement(sql)) { // ★ CSV保存版から変更
+            s.executeUpdate(); // ★ CSV保存版から変更
+        }
+    }
+
+    private static void addTodo(String title) { // ★ CSV保存版から変更
+        String sql = "INSERT INTO todos (title, done) VALUES (?, ?)"; // ★ CSV保存版から変更
+        try (Connection c = connect(); PreparedStatement s = c.prepareStatement(sql)) { // ★ CSV保存版から変更
+            s.setString(1, title); // ★ CSV保存版から変更
+            s.setInt(2, 0); // ★ CSV保存版から変更
+            s.executeUpdate(); // ★ CSV保存版から変更
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void completeTodo(int id) { // ★ CSV保存版から変更
+        String sql = "UPDATE todos SET done = 1 WHERE id = ?"; // ★ CSV保存版から変更
+        try (Connection c = connect(); PreparedStatement s = c.prepareStatement(sql)) { // ★ CSV保存版から変更
+            s.setInt(1, id); // ★ CSV保存版から変更
+            s.executeUpdate(); // ★ CSV保存版から変更
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void deleteTodo(int id) { // ★ CSV保存版から変更
+        String sql = "DELETE FROM todos WHERE id = ?"; // ★ CSV保存版から変更
+        try (Connection c = connect(); PreparedStatement s = c.prepareStatement(sql)) { // ★ CSV保存版から変更
+            s.setInt(1, id); // ★ CSV保存版から変更
+            s.executeUpdate(); // ★ CSV保存版から変更
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static List<Todo> findTodos() { // ★ CSV保存版から変更
+        List<Todo> todos = new ArrayList<>(); // ★ CSV保存版から変更
+        String sql = "SELECT id, title, done FROM todos ORDER BY id"; // ★ CSV保存版から変更
+        try (Connection c = connect(); PreparedStatement s = c.prepareStatement(sql); ResultSet r = s.executeQuery()) { // ★ CSV保存版から変更
+            while (r.next()) { // ★ CSV保存版から変更
+                todos.add(new Todo(r.getInt("id"), r.getString("title"), r.getInt("done") != 0)); // ★ CSV保存版から変更
             }
-            byte[] body = message.getBytes("UTF-8"); // 返す文字をUTF-8のデータに変換します
-            exchange.sendResponseHeaders(200, body.length); // 正常な応答とデータの長さを送ります
-            exchange.getResponseBody().write(body); // 変換したデータをブラウザに送ります
-            exchange.getResponseBody().close(); // 送信を終えて応答を閉じます
-        }); // "/"への処理の登録はここまでです
-        server.start(); // サーバーの待ち受けを開始します
-        System.out.println("サーバー起動: http://localhost:8080 （止めるときは Ctrl+C）"); // 起動したことをターミナルに表示します
-    } // mainメソッドはここまでです
-} // Appクラスはここまでです
-
-class Todo { // ★変更 Todoを表すクラスです
-    private final int id; // ★変更 Todoの番号です
-    private final String title; // ★変更 やることです
-    private boolean done; // ★変更 終わったかどうかです
-
-    Todo(int id, String title) { // ★変更 Todoを作るときの処理です
-        this.id = id; // ★変更 番号を保存します
-        this.title = title; // ★変更 やることを保存します
-        this.done = false; // ★変更 最初は未完了にします
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return todos; // ★ CSV保存版から変更
     }
 
-    int getId() { // ★変更 番号を読み出します
-        return id; // ★変更 番号を返します
+    public static void main(String[] args) throws Exception {
+        initializeDatabase(); // ★ CSV保存版から変更
+        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        server.createContext("/api/todos", exchange -> { // Todo一覧APIの入口を登録する
+            if (!exchange.getRequestMethod().equals("GET")) { // GET以外の要求を拒否する
+                exchange.sendResponseHeaders(405, -1); // Method Not Allowedを返す
+                exchange.close(); // 応答を閉じる
+                return; // API処理を終了する
+            } // GET以外の分岐を終える
+            byte[] response = todosAsJson().getBytes(StandardCharsets.UTF_8); // Todo一覧をUTF-8のJSONに変換する
+            exchange.getResponseHeaders().set("Content-Type", "application/json"); // Content-TypeをJSONだけに設定する
+            exchange.sendResponseHeaders(200, response.length); // JSONのHTTP応答を開始する
+            exchange.getResponseBody().write(response); // JSON本文を書き込む
+            exchange.getResponseBody().close(); // 応答本文を閉じる
+        }); // Todo一覧APIの入口を登録する処理を終える
+        server.createContext("/", exchange -> {
+            String path = exchange.getRequestURI().getPath();
+            String method = exchange.getRequestMethod();
+
+            if (path.equals("/add") && method.equals("POST")) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                if (body.startsWith("todo=")) {
+                    String title = URLDecoder.decode(body.substring(5), StandardCharsets.UTF_8);
+                    if (!title.isEmpty()) {
+                        addTodo(title); // ★ CSV保存版から変更: INSERTを実行
+                    }
+                }
+                redirect(exchange);
+                return;
+            }
+
+            if (path.equals("/done") && method.equals("GET")) {
+                Integer id = queryId(exchange);
+                if (id != null) {
+                    completeTodo(id); // ★ CSV保存版から変更: UPDATEを実行
+                }
+                redirect(exchange);
+                return;
+            }
+
+            if (path.equals("/delete") && method.equals("GET")) {
+                Integer id = queryId(exchange);
+                if (id != null) {
+                    deleteTodo(id); // ★ CSV保存版から変更: DELETEを実行
+                }
+                redirect(exchange);
+                return;
+            }
+
+            String message;
+            if (path.equals("/")) {
+                StringBuilder html = new StringBuilder();
+                html.append("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Todo</title></head><body>");
+                html.append("<h1>Todo</h1><form method='post' action='/add'>");
+                html.append("<input name='todo'><button>追加</button></form><ul>");
+                List<Todo> todos = findTodos(); // ★ CSV保存版から変更: SELECT結果を表示
+                for (Todo todo : todos) { // ★ CSV保存版から変更
+                    html.append("<li>").append(escapeHtml(todo.title));
+                    if (todo.done) {
+                        html.append(" &#10003;");
+                    }
+                    html.append(" <a href='/done?id=").append(todo.id).append("'>完了</a>");
+                    html.append(" <a href='/delete?id=").append(todo.id).append("'>削除</a></li>");
+                }
+                html.append("</ul></body></html>");
+                message = html.toString();
+                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+            } else {
+                message = "ページが見つかりません";
+            }
+
+            byte[] response = message.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        System.out.println("Server started: http://localhost:8080");
     }
 
-    String getTitle() { // ★変更 やることを読み出します
-        return title; // ★変更 やることを返します
+    private static Integer queryId(HttpExchange exchange) { // ★ CSV保存版から変更
+        String query = exchange.getRequestURI().getQuery();
+        if (query != null && query.startsWith("id=") && query.length() > 3) {
+            try {
+                return Integer.parseInt(query.substring(3));
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
-    boolean isDone() { // ★変更 完了したかを読み出します
-        return done; // ★変更 完了状態を返します
+    private static void redirect(HttpExchange exchange) throws java.io.IOException { // ★ CSV保存版から変更
+        exchange.getResponseHeaders().set("Location", "/");
+        exchange.sendResponseHeaders(303, -1);
+        exchange.close();
     }
 
-    void setDone(boolean done) { // ★変更 完了状態を書き換えます
-        this.done = done; // ★変更 完了状態を保存します
+    private static String escapeHtml(String value) { // ★ CSV保存版から変更
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
+    }
+
+    private static String todosAsJson() { // Todo一覧をJSON配列に変換する
+        StringBuilder json = new StringBuilder("["); // JSON配列の組み立てを開始する
+        List<Todo> todos = findTodos(); // データベースから全Todoを取得する
+        for (int i = 0; i < todos.size(); i++) { // Todoを順番にJSONへ変換する
+            if (i > 0) { // 2件目以降かどうかを確認する
+                json.append(','); // JSON要素の区切りを追加する
+            } // 区切り判定を終える
+            Todo todo = todos.get(i); // 現在のTodoを取り出す
+            json.append("{\"title\":\"").append(escapeJson(todo.title)); // タイトルをJSON文字列として追加する
+            json.append("\",\"done\":").append(todo.done); // 完了状態をJSON真偽値として追加する
+            json.append('}'); // JSONオブジェクトを閉じる
+        } // Todoの変換を終える
+        return json.append(']').toString(); // JSON配列を閉じて返す
+    } // Todo一覧のJSON変換を終える
+
+    private static String escapeJson(String value) { // JSON文字列内の特殊文字をエスケープする
+        StringBuilder escaped = new StringBuilder(); // エスケープ後の文字列を組み立てる
+        for (int i = 0; i < value.length(); i++) { // タイトルを1文字ずつ処理する
+            char ch = value.charAt(i); // 現在の文字を取り出す
+            switch (ch) { // JSONで特別扱いが必要な文字を判定する
+                case '"' -> escaped.append("\\\""); // ダブルクォートをエスケープする
+                case '\\' -> escaped.append("\\\\"); // バックスラッシュをエスケープする
+                case '\n' -> escaped.append("\\n"); // 改行をエスケープする
+                case '\r' -> escaped.append("\\r"); // 復帰をエスケープする
+                case '\t' -> escaped.append("\\t"); // タブをエスケープする
+                case '\b' -> escaped.append("\\b"); // バックスペースをエスケープする
+                case '\f' -> escaped.append("\\f"); // フォームフィードをエスケープする
+                default -> { // その他の文字を処理する
+                    if (ch < 0x20) { // JSONで許可されない制御文字か確認する
+                        escaped.append(String.format("\\u%04x", (int) ch)); // 制御文字をUnicode表記にする
+                    } else { // 通常の文字を処理する
+                        escaped.append(ch); // 文字をそのまま追加する
+                    } // 制御文字の処理を終える
+                } // その他の文字の処理を終える
+            } // 文字の判定を終える
+        } // タイトルの文字処理を終える
+        return escaped.toString(); // エスケープ済み文字列を返す
+    } // JSON文字列のエスケープを終える
+}
+
+class Todo {
+    final int id;
+    final String title;
+    final boolean done;
+
+    Todo(int id, String title, boolean done) { // ★ CSV保存版から変更
+        this.id = id;
+        this.title = title;
+        this.done = done;
     }
 }
